@@ -19,6 +19,8 @@ import numpy as np
 MODEL_PATH: str = "yolov8n.pt"
 PERSON_CLASS_ID: int = 0  # COCO "person"
 CONFIDENCE_THRESHOLD: float = 0.5
+# Point used for distance: "centroid" (baseline) or "bottom" (feet, improvement).
+METHOD: str = "centroid"
 
 # --------------------------------------------------------------------------- #
 # Distance logic (in Bird's-Eye-View pixels, NOT real-world meters)
@@ -64,6 +66,7 @@ class Settings:
     model_path: str = MODEL_PATH
     person_class_id: int = PERSON_CLASS_ID
     confidence_threshold: float = CONFIDENCE_THRESHOLD
+    method: str = METHOD
     distance_threshold_px: float = DISTANCE_THRESHOLD_PX
     color_safe: Tuple[int, int, int] = COLOR_SAFE
     color_violation: Tuple[int, int, int] = COLOR_VIOLATION
@@ -95,6 +98,8 @@ class Settings:
                 raise ValueError(f"{name} must be a BGR triple.")
         if not 0.0 <= self.confidence_threshold <= 1.0:
             raise ValueError("confidence_threshold must be within [0, 1].")
+        if self.method not in ("centroid", "bottom"):
+            raise ValueError("method must be 'centroid' or 'bottom'.")
         if self.distance_threshold_px <= 0:
             raise ValueError("distance_threshold_px must be > 0.")
 
