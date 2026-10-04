@@ -13,6 +13,7 @@ import numpy as np
 import config
 from config import Settings
 from src.detector import PersonDetector
+from src.centroid import METHODS, get_reference_points
 from src.distance import DistanceAnalyzer
 from src.perspective import PerspectiveTransformer
 from src.visualizer import Visualizer
@@ -29,6 +30,9 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--select-points", action="store_true", help="Click 4 ROI points on the first frame.")
     p.add_argument("--no-select", action="store_true", help="Never prompt; use configured SRC_POINTS.")
     p.add_argument("--model", default=None, help="Override YOLO weights path.")
+    p.add_argument("--method", choices=METHODS, default=None,
+                   help="Reference point for distance: 'centroid' (baseline, default) "
+                        "or 'bottom' (bottom-center / feet, improvement).")
     p.add_argument("--conf", type=float, default=None, help="Override confidence threshold.")
     p.add_argument("--threshold", type=float, default=None, help="Override distance threshold (BEV px).")
     p.add_argument("--roi-only", action="store_true", help="Only analyse people standing inside the ROI.")
@@ -41,6 +45,8 @@ def load_settings(args: argparse.Namespace) -> Settings:
     settings = Settings.from_json(args.config) if args.config else Settings()
     if args.model is not None:
         settings.model_path = args.model
+    if args.method is not None:
+        settings.method = args.method
     if args.conf is not None:
         settings.confidence_threshold = args.conf
     if args.threshold is not None:
@@ -87,19 +93,23 @@ def run(settings: Settings, source: object, select: bool) -> int:
         fps_counter = FPSCounter()
         bev_size = settings.bev_size
         threshold = settings.distance_threshold_px
+        log.info("Reference point method: %s", settings.method)
 
         # --- Main loop -----------------------------------------------------
         while ok and frame is not None:
             dets = detector.detect(frame)
+            ref_points = get_reference_points(dets.bboxes, settings.method)
 
             if settings.filter_outside_roi and len(dets) > 0:
-                dets = dets.filter(transformer.inside_roi(dets.bottom_points))
+                keep = transformer.inside_roi(ref_points)
+                dets = dets.filter(keep)
+                ref_points = ref_points[keep]
 
-            bev_points = transformer.transform_points(dets.bottom_points)
+            bev_points = transformer.transform_points(ref_points)
             violating_indices, violating_pairs = analyzer.evaluate_violations(bev_points, threshold)
 
             fps = fps_counter.tick()
-            visualizer.draw_detections(frame, dets.bboxes, dets.bottom_points,
+            visualizer.draw_detections(frame, dets.bboxes, ref_points,
                                        violating_indices, violating_pairs, fps)
             if settings.show_birdseye:
                 visualizer.draw_birdseye(frame, bev_points, violating_indices,

@@ -17,9 +17,11 @@
 ## Deskripsi
 
 Aplikasi Python untuk memantau *social distancing* secara real-time dari file video, stream, atau webcam.
-Orang dideteksi memakai YOLOv8, lalu **posisi kaki** mereka (titik tengah bawah bounding box) diproyeksikan
-ke bidang 2D tampak atas (*bird's-eye view*) lewat homography. Jarak Euclidean antar orang dihitung di bidang
-tersebut sehingga distorsi perspektif kamera tidak memengaruhi hasil.
+Orang dideteksi memakai YOLOv8, lalu satu titik acuan per orang diproyeksikan ke bidang 2D tampak atas
+(*bird's-eye view*) lewat homography. Jarak Euclidean antar orang dihitung di bidang tersebut sehingga
+distorsi perspektif kamera tidak memengaruhi hasil.
+
+Titik acuan jarak bisa dipilih lewat `--method`: `centroid` (default, baseline) atau `bottom` (titik kaki, peningkatan). Lihat bagian Catatan.
 
 Alur per frame: **Baca frame → Deteksi → Transformasi titik → Hitung jarak → Gambar overlay → Tampilkan**.
 
@@ -29,6 +31,7 @@ Alur per frame: **Baca frame → Deteksi → Transformasi titik → Hitung jarak
 social_distancing_detector/
 ├── config.py            # konstanta + dataclass Settings (bisa di-override via JSON)
 ├── src/
+│   ├── centroid.py      # pemilihan titik acuan (centroid / bottom)
 │   ├── detector.py      # PersonDetector (YOLO) + container Detections
 │   ├── perspective.py   # PerspectiveTransformer (homography / BEV)
 │   ├── distance.py      # DistanceAnalyzer (logika pelanggaran dengan cdist)
@@ -57,13 +60,17 @@ Jalankan dari dalam folder `social_distancing_detector`.
 
 ```bash
 # File video, pilih ROI secara interaktif
-python main.py --source videos/street.mp4 --select-points
+python main.py --source video_testing.mp4 --select-points
 
 # Webcam
 python main.py --source 0
 
 # Pakai config tersimpan, hanya analisis orang di dalam ROI
-python main.py --source videos/street.mp4 --config my_config.json --roi-only
+python main.py --source video_testing.mp4 --config roi.json --roi-only
+
+# Bandingkan metode titik acuan pada video dan ROI yang sama
+python main.py --source video_testing.mp4 --config roi.json --method centroid
+python main.py --source video_testing.mp4 --config roi.json --method bottom
 ```
 
 Tekan **`q`** untuk keluar.
@@ -105,6 +112,7 @@ Prioritas: **flag CLI > file JSON > `config.py`**.
 | `--config` | File JSON untuk override konfigurasi |
 | `--select-points` / `--no-select` | Paksa / lewati pemilihan ROI |
 | `--model` | Path bobot YOLO |
+| `--method` | Titik acuan jarak: `centroid` (default) atau `bottom` (titik kaki) |
 | `--conf` | Threshold kepercayaan deteksi (default `0.5`) |
 | `--threshold` | Threshold jarak dalam piksel BEV (default `100`) |
 | `--roi-only` | Abaikan orang yang kakinya di luar ROI |
@@ -126,7 +134,9 @@ sehingga jarak aman 1,5 m ≈ **150 px** dan 2 m ≈ **200 px**.
 
 ## Catatan
 
-- Program menggunakan **titik kaki** (`(int((x1+x2)/2), int(y2))`), bukan centroid bounding box.
+- Default memakai **centroid** bounding box (`((x1+x2)/2, (y1+y2)/2)`) sebagai baseline. Mode `bottom`
+  (`((x1+x2)/2, y2)`) adalah peningkatan karena titik kaki berada di bidang tanah, sedangkan centroid
+  melayang di atas tanah sehingga proyeksi homography-nya bisa bias.
 - Belum ada *tracking*: setiap frame diproses terpisah dan orang tidak punya ID yang konsisten antar frame.
 - Detector bisa diganti: kelas apa pun yang punya method `detect(frame) -> Detections` dapat menggantikan
   `PersonDetector` tanpa mengubah modul lain.
