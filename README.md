@@ -1,9 +1,9 @@
 # SCSG Project
-# 140810230008 - Robby Azwan Saputra
-# 140810230008 - Achmad Dzaki Azhari
-# 140810230008 - Siti Nailah Eko
-# 140810230008 - Yazid Dahren Fauzan
-# 140810230008 - Athallah Azhar Aulia Hadi
+- 140810230008 - Robby Azwan Saputra
+- 140810230008 - Achmad Dzaki Azhari
+- 140810230008 - Siti Nailah Eko
+- 140810230008 - Yazid Dahren Fauzan
+- 140810230008 - Athallah Azhar Aulia Hadi
 
 
 ## Social Distancing Detector (YOLO + Bird's-Eye View)
